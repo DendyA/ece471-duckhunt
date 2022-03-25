@@ -1,4 +1,8 @@
 import time
+import cv2
+import numpy as np
+
+comp_vis_type = ["Template Matching"]
 
 """
 Replace following with your own algorithm logic
@@ -7,7 +11,8 @@ Two random coordinate generator has been provided for testing purposes.
 Manual mode where you can use your mouse as also been added for testing purposes.
 """
 def GetLocation(move_type, env, current_frame):
-    time.sleep(1) #artificial one second processing time
+    # time.sleep(1) #artificial one second processing time
+    visionTypeToUse = comp_vis_type[0]
     
     #Use relative coordinates to the current position of the "gun", defined as an integer below
     if move_type == "relative":
@@ -30,7 +35,24 @@ def GetLocation(move_type, env, current_frame):
         Upper left = (0,0)
         Bottom right = (W, H) 
         """
-        coordinate = env.action_space_abs.sample()
-    
+        if visionTypeToUse == comp_vis_type[0]:
+            birdEye = cv2.imread("imgs/template_eye.png", cv2.IMREAD_GRAYSCALE)
+
+            # Should be in WxHxD tuple form. (Where W is width, h is height, and d is depth (num of channels)).
+            birdEyeShape = birdEye.shape
+            currentFrameShape = current_frame.shape
+
+            greyScaleFrame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
+
+            isBird = cv2.matchTemplate(image=greyScaleFrame, templ=birdEye, method=cv2.TM_CCOEFF)
+            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(isBird)
+
+            top_left = max_loc
+            bottom_right = (top_left[0] + birdEyeShape[0], top_left[1] + birdEyeShape[1])
+
+            coordinate = (int((bottom_right[1] + top_left[1]) / 2), int((bottom_right[0] + top_left[0]) / 2))
+        else:
+            coordinate = env.action_space_abs.sample()
+
     return [{'coordinate' : coordinate, 'move_type' : move_type}]
 
