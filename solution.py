@@ -12,7 +12,7 @@ Manual mode where you can use your mouse as also been added for testing purposes
 """
 def GetLocation(move_type, env, current_frame):
     # time.sleep(1) #artificial one second processing time
-    visionTypeToUse = comp_vis_type[1]
+    visionTypeToUse = comp_vis_type[0]
 
     # keep previous frame - JE
     global prev_frame
@@ -42,7 +42,7 @@ def GetLocation(move_type, env, current_frame):
         """
         if visionTypeToUse == comp_vis_type[0]:
             
-            birdEye = cv2.imread("template_eye.png", cv2.IMREAD_GRAYSCALE)
+            birdEye = cv2.imread("imgs/template_eye.png", cv2.IMREAD_GRAYSCALE)
 
             # Should be in WxHxD tuple form. (Where W is width, h is height, and d is depth (num of channels)).
             birdEyeShape = birdEye.shape
