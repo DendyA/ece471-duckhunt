@@ -12,12 +12,11 @@ Manual mode where you can use your mouse as also been added for testing purposes
 """
 def GetLocation(move_type, env, current_frame):
     # time.sleep(1) #artificial one second processing time
-    visionTypeToUse = comp_vis_type[0]
+    visionTypeToUse = comp_vis_type[1]
 
     # keep previous frame - JE
     global prev_frame
 
-    visionTypeToUse = comp_vis_type[1]
     greyScaleFrame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
 
     #Use relative coordinates to the current position of the "gun", defined as an integer below
@@ -42,7 +41,6 @@ def GetLocation(move_type, env, current_frame):
         Bottom right = (W, H) 
         """
         if visionTypeToUse == comp_vis_type[0]:
-            greyScaleFrame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
             
             birdEye = cv2.imread("template_eye.png", cv2.IMREAD_GRAYSCALE)
 
