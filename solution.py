@@ -2,7 +2,7 @@ import time
 import cv2
 import numpy as np
 
-comp_vis_type = ["Template Matching"]
+comp_vis_type = ["Template Matching", "HOG"]
 
 """
 Replace following with your own algorithm logic
@@ -12,8 +12,9 @@ Manual mode where you can use your mouse as also been added for testing purposes
 """
 def GetLocation(move_type, env, current_frame):
     # time.sleep(1) #artificial one second processing time
-    visionTypeToUse = comp_vis_type[0]
-    
+    visionTypeToUse = comp_vis_type[1]
+    greyScaleFrame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
+
     #Use relative coordinates to the current position of the "gun", defined as an integer below
     if move_type == "relative":
         """
@@ -27,7 +28,7 @@ def GetLocation(move_type, env, current_frame):
         North-West = 7
         NOOP = 8
         """
-        coordinate = env.action_space.sample() 
+        coordinate = env.action_space.sample()
     #Use absolute coordinates for the position of the "gun", coordinate space are defined below
     else:
         """
@@ -42,8 +43,6 @@ def GetLocation(move_type, env, current_frame):
             birdEyeShape = birdEye.shape
             currentFrameShape = current_frame.shape
 
-            greyScaleFrame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
-
             isBird = cv2.matchTemplate(image=greyScaleFrame, templ=birdEye, method=cv2.TM_CCOEFF)
             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(isBird)
 
@@ -51,6 +50,12 @@ def GetLocation(move_type, env, current_frame):
             bottom_right = (top_left[0] + birdEyeShape[0], top_left[1] + birdEyeShape[1])
 
             coordinate = (int((bottom_right[1] + top_left[1]) / 2), int((bottom_right[0] + top_left[0]) / 2))
+        elif visionTypeToUse == comp_vis_type[1]:
+            # https://docs.opencv.org/4.x/d5/d33/structcv_1_1HOGDescriptor.html#a5c8e8ce0578512fe80493ed3ed88ca83
+            # https://stackoverflow.com/questions/6090399/get-hog-image-features-from-opencv-python
+            hogDescriptor = cv2.HOGDescriptor((64, 64), (16, 16), (8, 8), (8, 8), 9, 1, -1, cv2.HOGDescriptor_L2Hys, 0.2, False, 64, False)
+
+            hist = hogDescriptor.compute(greyScaleFrame, (8, 8), (8, 8))
         else:
             coordinate = env.action_space_abs.sample()
 
