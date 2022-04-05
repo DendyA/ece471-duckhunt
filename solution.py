@@ -1,9 +1,9 @@
-import time
 import cv2
 import numpy as np
 import rf
+from pathlib import Path
 
-comp_vis_type = ["Template Matching", "HOG", "ML"]
+comp_vis_type = ["Template Matching", "SIFT", "ML"]
 
 """
 Replace following with your own algorithm logic
@@ -11,16 +11,21 @@ Replace following with your own algorithm logic
 Two random coordinate generator has been provided for testing purposes.
 Manual mode where you can use your mouse as also been added for testing purposes.
 """
+
+
 def GetLocation(move_type, env, current_frame):
     # time.sleep(1) #artificial one second processing time
-    visionTypeToUse = comp_vis_type[0]
+    visionTypeToUse = comp_vis_type[1]
 
     # keep previous frame - JE
     global prev_frame
 
+    global spriteKeys
+    global spriteDescr
+
     greyScaleFrame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
 
-    #Use relative coordinates to the current position of the "gun", defined as an integer below
+    # Use relative coordinates to the current position of the "gun", defined as an integer below
     if move_type == "relative":
         """
         North = 0
@@ -34,7 +39,7 @@ def GetLocation(move_type, env, current_frame):
         NOOP = 8
         """
         coordinate = env.action_space.sample()
-    #Use absolute coordinates for the position of the "gun", coordinate space are defined below
+    # Use absolute coordinates for the position of the "gun", coordinate space are defined below
     else:
         """
         (x,y) coordinates
@@ -42,7 +47,7 @@ def GetLocation(move_type, env, current_frame):
         Bottom right = (W, H) 
         """
         if visionTypeToUse == comp_vis_type[0]:
-            
+
             birdEye = cv2.imread("imgs/template_eye.png", cv2.IMREAD_GRAYSCALE)
 
             # Should be in WxHxD tuple form. (Where W is width, h is height, and d is depth (num of channels)).
@@ -53,32 +58,78 @@ def GetLocation(move_type, env, current_frame):
             if 'prev_frame' not in globals():
                 print("Set Prev frame")
                 prev_frame = greyScaleFrame
-            diff_frame = np.where(greyScaleFrame == prev_frame,0,greyScaleFrame)
+            diff_frame = np.where(greyScaleFrame == prev_frame, 0, greyScaleFrame)
             total = sum(sum(diff_frame))
-            if (total > 50000): # needs fix? triggered if non static background like rain - JE
-                print("Set Prev frame, total: ",total)
+            if (total > 50000):  # needs fix? triggered if non static background like rain - JE
+                print("Set Prev frame, total: ", total)
                 prev_frame = greyScaleFrame
             prev_frame = greyScaleFrame
-            greyScaleFrame = diff_frame 
+            greyScaleFrame = diff_frame
 
             isBird = cv2.matchTemplate(image=greyScaleFrame, templ=birdEye, method=cv2.TM_CCOEFF)
-            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(isBird)
+            min_value, max_value, min_location, max_location = cv2.minMaxLoc(
+                isBird)
 
-            top_left = max_loc
+            top_left = max_location
             bottom_right = (top_left[0] + birdEyeShape[0], top_left[1] + birdEyeShape[1])
 
-            coordinate = (int((bottom_right[1] + top_left[1]) / 2), int((bottom_right[0] + top_left[0]) / 2))
+            coordinate = (int((bottom_right[1] + top_left[1]) / 2),
+                          int((bottom_right[0] + top_left[0]) / 2))
         elif visionTypeToUse == comp_vis_type[1]:
-            # https://docs.opencv.org/4.x/d5/d33/structcv_1_1HOGDescriptor.html#a5c8e8ce0578512fe80493ed3ed88ca83
-            # https://stackoverflow.com/questions/6090399/get-hog-image-features-from-opencv-python
-            hogDescriptor = cv2.HOGDescriptor((64, 64), (16, 16), (8, 8), (8, 8), 9, 1, -1, cv2.HOGDescriptor_L2Hys, 0.2, False, 64, False)
+            if 'spriteKeys' not in globals() or 'spriteDescr' not in globals():
+                keypoints = []
+                descriptors = []
+                sift = cv2.SIFT.create()
+                pathlist = Path("./sprites/").rglob('*.png')
+                for path in pathlist:
+                    tempFile = cv2.imread("./" + str(path), cv2.IMREAD_GRAYSCALE)
+                    key, descr = cv2.SIFT.detectAndCompute(sift, tempFile, None)
+                    keypoints.append(key)
+                    descriptors.append(descr)
 
-            hist = hogDescriptor.compute(greyScaleFrame, (8, 8), (8, 8))
+                spriteKeys = keypoints
+                spriteDescr = descriptors
+
+            if 'prev_frame' not in globals():
+                print("Set Prev frame")
+                prev_frame = greyScaleFrame
+            diff_frame = np.where(greyScaleFrame == prev_frame, 0, greyScaleFrame)
+            total = sum(sum(diff_frame))
+            if (total > 50000):  # needs fix? triggered if non static background like rain - JE
+                print("Set Prev frame, total: ", total)
+                prev_frame = greyScaleFrame
+            prev_frame = greyScaleFrame
+            greyScaleFrame = diff_frame
+
+            sift = cv2.SIFT.create()
+
+            currKey, currDescr = cv2.SIFT.detectAndCompute(sift, greyScaleFrame, None)
+            if len(currKey) == 0:
+                coordinate = (0, 0)
+            else:
+                bruteMatcher = cv2.BFMatcher.create(normType=cv2.NORM_L2SQR)
+                smallestDistance = []
+                for desc in spriteDescr:
+                    foundMatches = cv2.BFMatcher.match(bruteMatcher, currDescr, desc)
+                    smallestDistance += list(foundMatches)
+
+                smallestDistance.sort(key=lambda m: m.distance)
+                coordX = 0
+                coordY = 0
+                numOfPointsToAv = 1
+                for i in range(numOfPointsToAv):
+                    coordX += currKey[smallestDistance[i].queryIdx].pt[0]
+                    coordY += currKey[smallestDistance[i].queryIdx].pt[1]
+                coordX /= numOfPointsToAv
+                coordY /= numOfPointsToAv
+
+                coordinate = (int(coordY), int(coordX))
+
         elif visionTypeToUse == comp_vis_type[2]:
-            #machine learning
-            coordinate = rf.predict_yolov5(current_frame)[0] #takes first coordinate set
+            # machine learning
+            coordinate = rf.predict_yolov5(current_frame)[0]  # takes first coordinate set
 
         else:
             coordinate = env.action_space_abs.sample()
 
-    return [{'coordinate' : coordinate, 'move_type' : move_type}]
+    return [{'coordinate': coordinate, 'move_type': move_type}]
