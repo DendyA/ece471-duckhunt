@@ -153,11 +153,19 @@ def GetLocation(move_type, env, current_frame):
 
             # coordinate = rf.predict_yolov5(frame)[0] #takes first coordinate set
             result = rf.predict_yolov5(current_frame)
+            return_vals = []
             if not result:
                 print("no ducks")
                 coordinate = (0,0)
             else:
-                coordinate = result[0]
+                # coordinate = result[0]
+                for res in result:
+                    return_vals.append({'coordinate': res, 'move_type': move_type})
+
+                print("ducks found", len(return_vals))
+                print(return_vals)
+                return return_vals
+
             # coordinate = rf.predict_yolov5(current_frame)[0]  # takes first coordinate set
             # coordinate = rf.predict_yolov5_w_screenshots()
             # coordinate = (0,0)

@@ -41,13 +41,15 @@ def evolve_yolov5():
     yolov5.train.run(data=ROOT / 'yolov5data/data.yaml', imgsz=640, weights='yolov5s.pt', evolve=True, epochs=100)
 
 def predict_yolov5(frame):
+    print(frame.shape)
     results = yolov5.detect_local.run(weights=ROOT / 'yolov5/runs/train/exp5/weights/best.pt', #source=ROOT / 'screenshots/manualtest2', 
                         data=ROOT / 'yolov5data/data.yaml', name='exp5', conf_thres=0.7, save_txt=True, save_conf=True, return_val=True, im=frame)
     x_y_coords = [(p[1], p[2]) for p in results if p[0] == 0]
+    print("xy", x_y_coords)
     return x_y_coords
 
 def predict_yolov5_w_screenshots():
-    results = yolov5.detect_local.run(weights=ROOT / 'yolov5/runs/train/exp6/weights/best.pt', source=ROOT / 'screenshots/manualtest', 
+    results = yolov5.detect_local.run(weights=ROOT / 'yolov5/runs/train/exp5/weights/best.pt', source=ROOT / 'screenshots/manualtest', 
                         data=ROOT / 'yolov5data/data.yaml', name='exp6', conf_thres=0.7, save_txt=True, save_conf=True, return_val=True, im=None)
     x_y_coords = [(p[1], p[2]) for p in results if p[0] == 0]
     return x_y_coords
