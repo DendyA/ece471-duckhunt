@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import rf
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 comp_vis_type = ["Template Matching", "SIFT", "ML"]
 
@@ -15,7 +16,7 @@ Manual mode where you can use your mouse as also been added for testing purposes
 
 def GetLocation(move_type, env, current_frame):
     # time.sleep(1) #artificial one second processing time
-    visionTypeToUse = comp_vis_type[1]
+    visionTypeToUse = comp_vis_type[2]
 
     # keep previous frame - JE
     global prev_frame
@@ -127,7 +128,39 @@ def GetLocation(move_type, env, current_frame):
 
         elif visionTypeToUse == comp_vis_type[2]:
             # machine learning
-            coordinate = rf.predict_yolov5(current_frame)[0]  # takes first coordinate set
+            # current_frame : np.ndarray (width, height, 3), np.uint8, RGB
+
+            # else:
+            #     # Read image
+            # self.count += 1
+            # img0 = cv2.imread(path)  # BGR
+            # assert img0 is not None, f'Image Not Found {path}'
+            # s = f'image {self.count}/{self.nf} {path}: '
+
+            # # Padded resize
+            # img = letterbox(img0, self.img_size, stride=self.stride, auto=self.auto)[0]
+
+            # # Convert
+            # img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+            # img = np.ascontiguousarray(img)
+
+            # plt.imshow(current_frame)
+            # frame = np.transpose(current_frame)
+            # frame = np.reshape(frame,(1,3,768,1024))
+            # print("frame")
+            # print(frame.shape)
+            # plt.imshow(frame)
+
+            # coordinate = rf.predict_yolov5(frame)[0] #takes first coordinate set
+            result = rf.predict_yolov5(current_frame)
+            if not result:
+                print("no ducks")
+                coordinate = (0,0)
+            else:
+                coordinate = result[0]
+            # coordinate = rf.predict_yolov5(current_frame)[0]  # takes first coordinate set
+            # coordinate = rf.predict_yolov5_w_screenshots()
+            # coordinate = (0,0)
 
         else:
             coordinate = env.action_space_abs.sample()

@@ -1,4 +1,4 @@
-import roboflow
+# import roboflow
 import json
 import yolov5.train
 import yolov5.detect_local
@@ -35,7 +35,10 @@ def run_ui_prediction(version_number):
 def train_yolov5():
     # Usage: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m.pt')
     #trains yolov5s on the training data
-    yolov5.train.run(data=ROOT / 'yolov5data/data.yaml', imgsz=640, weights='yolov5s.pt')
+    yolov5.train.run(data=ROOT / 'yolov5data/data.yaml', imgsz=640, weights='yolov5s.pt', epochs=100)
+
+def evolve_yolov5():
+    yolov5.train.run(data=ROOT / 'yolov5data/data.yaml', imgsz=640, weights='yolov5s.pt', evolve=True, epochs=100)
 
 def predict_yolov5(frame):
     results = yolov5.detect_local.run(weights=ROOT / 'yolov5/runs/train/exp5/weights/best.pt', #source=ROOT / 'screenshots/manualtest2', 
@@ -44,8 +47,8 @@ def predict_yolov5(frame):
     return x_y_coords
 
 def predict_yolov5_w_screenshots():
-    results = yolov5.detect_local.run(weights=ROOT / 'yolov5/runs/train/exp5/weights/best.pt', source=ROOT / 'screenshots/manualtest2', 
-                        data=ROOT / 'yolov5data/data.yaml', name='exp5', conf_thres=0.7, save_txt=True, save_conf=True, return_val=True, im=None)
+    results = yolov5.detect_local.run(weights=ROOT / 'yolov5/runs/train/exp6/weights/best.pt', source=ROOT / 'screenshots/manualtest', 
+                        data=ROOT / 'yolov5data/data.yaml', name='exp6', conf_thres=0.7, save_txt=True, save_conf=True, return_val=True, im=None)
     x_y_coords = [(p[1], p[2]) for p in results if p[0] == 0]
     return x_y_coords
 
@@ -53,4 +56,4 @@ def predict_yolov5_w_screenshots():
 # predict_yolov5()
 # print(predict_yolov5())
 
-print(predict_yolov5_w_screenshots())
+# print(predict_yolov5_w_screenshots())
