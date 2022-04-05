@@ -1,8 +1,9 @@
 import time
 import cv2
 import numpy as np
+import rf
 
-comp_vis_type = ["Template Matching", "HOG"]
+comp_vis_type = ["Template Matching", "HOG", "ML"]
 
 """
 Replace following with your own algorithm logic
@@ -73,6 +74,10 @@ def GetLocation(move_type, env, current_frame):
             hogDescriptor = cv2.HOGDescriptor((64, 64), (16, 16), (8, 8), (8, 8), 9, 1, -1, cv2.HOGDescriptor_L2Hys, 0.2, False, 64, False)
 
             hist = hogDescriptor.compute(greyScaleFrame, (8, 8), (8, 8))
+        elif visionTypeToUse == comp_vis_type[2]:
+            #machine learning
+            coordinate = rf.predict_yolov5(current_frame)[0] #takes first coordinate set
+
         else:
             coordinate = env.action_space_abs.sample()
 

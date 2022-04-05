@@ -1,0 +1,5 @@
+train: ../yolov5data/train/images
+val: ../yolov5data/valid/images
+
+nc: 2
+names: ['duck', 'falling_duck']
