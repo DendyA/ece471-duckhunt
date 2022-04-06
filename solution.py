@@ -1,176 +1,32 @@
 import cv2
 import numpy as np
-import rf
-from pathlib import Path
-import matplotlib.pyplot as plt
 
-comp_vis_type = ["Template Matching", "SIFT", "ML"]
-
-"""
-Replace following with your own algorithm logic
-
-Two random coordinate generator has been provided for testing purposes.
-Manual mode where you can use your mouse as also been added for testing purposes.
-"""
-
-
-def GetLocation(move_type, env, current_frame):
-    # time.sleep(1) #artificial one second processing time
-    visionTypeToUse = comp_vis_type[2]
-
-    # keep previous frame - JE
-    global prev_frame
-
-    global spriteKeys
-    global spriteDescr
-
-    greyScaleFrame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
-
-    # Use relative coordinates to the current position of the "gun", defined as an integer below
-    if move_type == "relative":
-        """
-        North = 0
-        North-East = 1
-        East = 2
-        South-East = 3
-        South = 4
-        South-West = 5
-        West = 6
-        North-West = 7
-        NOOP = 8
-        """
-        coordinate = env.action_space.sample()
-    # Use absolute coordinates for the position of the "gun", coordinate space are defined below
-    else:
-        """
-        (x,y) coordinates
-        Upper left = (0,0)
-        Bottom right = (W, H) 
-        """
-        if visionTypeToUse == comp_vis_type[0]:
-
-            birdEye = cv2.imread("imgs/template_eye.png", cv2.IMREAD_GRAYSCALE)
-
-            # Should be in WxHxD tuple form. (Where W is width, h is height, and d is depth (num of channels)).
-            birdEyeShape = birdEye.shape
-            currentFrameShape = current_frame.shape
-
-            # find and remove background - JE
-            if 'prev_frame' not in globals():
-                print("Set Prev frame")
-                prev_frame = greyScaleFrame
-            diff_frame = np.where(greyScaleFrame == prev_frame, 0, greyScaleFrame)
-            total = sum(sum(diff_frame))
-            if (total > 50000):  # needs fix? triggered if non static background like rain - JE
-                print("Set Prev frame, total: ", total)
-                prev_frame = greyScaleFrame
-            prev_frame = greyScaleFrame
-            greyScaleFrame = diff_frame
-
-            isBird = cv2.matchTemplate(image=greyScaleFrame, templ=birdEye, method=cv2.TM_CCOEFF)
-            min_value, max_value, min_location, max_location = cv2.minMaxLoc(
-                isBird)
-
-            top_left = max_location
-            bottom_right = (top_left[0] + birdEyeShape[0], top_left[1] + birdEyeShape[1])
-
-            coordinate = (int((bottom_right[1] + top_left[1]) / 2),
-                          int((bottom_right[0] + top_left[0]) / 2))
-        elif visionTypeToUse == comp_vis_type[1]:
-            if 'spriteKeys' not in globals() or 'spriteDescr' not in globals():
-                keypoints = []
-                descriptors = []
-                sift = cv2.SIFT.create()
-                pathlist = Path("./sprites/").rglob('*.png')
-                for path in pathlist:
-                    tempFile = cv2.imread("./" + str(path), cv2.IMREAD_GRAYSCALE)
-                    key, descr = cv2.SIFT.detectAndCompute(sift, tempFile, None)
-                    keypoints.append(key)
-                    descriptors.append(descr)
-
-                spriteKeys = keypoints
-                spriteDescr = descriptors
-
-            if 'prev_frame' not in globals():
-                print("Set Prev frame")
-                prev_frame = greyScaleFrame
-            diff_frame = np.where(greyScaleFrame == prev_frame, 0, greyScaleFrame)
-            total = sum(sum(diff_frame))
-            if (total > 50000):  # needs fix? triggered if non static background like rain - JE
-                print("Set Prev frame, total: ", total)
-                prev_frame = greyScaleFrame
-            prev_frame = greyScaleFrame
-            greyScaleFrame = diff_frame
-
-            sift = cv2.SIFT.create()
-
-            currKey, currDescr = cv2.SIFT.detectAndCompute(sift, greyScaleFrame, None)
-            if len(currKey) == 0:
-                coordinate = (0, 0)
-            else:
-                bruteMatcher = cv2.BFMatcher.create(normType=cv2.NORM_L2SQR)
-                smallestDistance = []
-                for desc in spriteDescr:
-                    foundMatches = cv2.BFMatcher.match(bruteMatcher, currDescr, desc)
-                    smallestDistance += list(foundMatches)
-
-                smallestDistance.sort(key=lambda m: m.distance)
-                coordX = 0
-                coordY = 0
-                numOfPointsToAv = 1
-                for i in range(numOfPointsToAv):
-                    coordX += currKey[smallestDistance[i].queryIdx].pt[0]
-                    coordY += currKey[smallestDistance[i].queryIdx].pt[1]
-                coordX /= numOfPointsToAv
-                coordY /= numOfPointsToAv
-
-                coordinate = (int(coordY), int(coordX))
-
-        elif visionTypeToUse == comp_vis_type[2]:
-            # machine learning
-            # current_frame : np.ndarray (width, height, 3), np.uint8, RGB
-
-            # else:
-            #     # Read image
-            # self.count += 1
-            # img0 = cv2.imread(path)  # BGR
-            # assert img0 is not None, f'Image Not Found {path}'
-            # s = f'image {self.count}/{self.nf} {path}: '
-
-            # # Padded resize
-            # img = letterbox(img0, self.img_size, stride=self.stride, auto=self.auto)[0]
-
-            # # Convert
-            # img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
-            # img = np.ascontiguousarray(img)
-
-            # plt.imshow(current_frame)
-            # frame = np.transpose(current_frame)
-            # frame = np.reshape(frame,(1,3,768,1024))
-            # print("frame")
-            # print(frame.shape)
-            # plt.imshow(frame)
-
-            # coordinate = rf.predict_yolov5(frame)[0] #takes first coordinate set
-            result = rf.predict_yolov5(current_frame)
-            return_vals = []
-            if not result:
-                print("no ducks")
-                coordinate = (0,0)
-            else:
-                # coordinate = result[0]
-                for res in result:
-                    return_vals.append({'coordinate': res, 'move_type': move_type})
-
-                print("ducks found", len(return_vals))
-                print(return_vals)
-                return return_vals
-
-            # coordinate = rf.predict_yolov5(current_frame)[0]  # takes first coordinate set
-            # coordinate = rf.predict_yolov5_w_screenshots()
-            # coordinate = (0,0)
-
-        else:
-            coordinate = env.action_space_abs.sample()
-
-    return [{'coordinate': coordinate, 'move_type': move_type}]
+def GetLocation(move_type, env, CurrFrame):
+    global PrevFrame
+    GreyFrame = cv2.cvtColor(CurrFrame, cv2.COLOR_RGB2GRAY)
+    if 'PrevFrame' not in globals():
+        PrevFrame = GreyFrame
+    Template = np.array(                                                         \
+        [[160, 152, 136, 119, 130, 163, 192, 188, 148, 119, 104, 103, 111, 126], \
+         [146, 133, 113, 102, 128, 179, 219, 213, 158, 113,  85,  74,  76,  90], \
+         [117, 110, 113, 130, 165, 209, 239, 235, 193, 151, 114,  84,  63,  61], \
+         [ 85,  93, 131, 185, 221, 241, 250, 249, 237, 211, 170, 117,  68,  46], \
+         [ 71,  89, 147, 217, 246, 255, 255, 255, 255, 239, 197, 136,  72,  40], \
+         [ 71,  87, 143, 212, 240, 240, 233, 234, 244, 233, 193, 133,  72,  41], \
+         [ 72,  90, 147, 213, 222, 190, 156, 162, 208, 222, 194, 137,  73,  42], \
+         [ 73,  94, 154, 218, 207, 134,  69,  80, 168, 213, 199, 144,  75,  42], \
+         [ 74,  97, 160, 222, 197,  98,  13,  26, 144, 208, 204, 149,  77,  42], \
+         [ 75,  96, 156, 218, 198, 109,  31,  44, 150, 207, 199, 145,  76,  42], \
+         [ 83,  81, 109, 151, 161, 144, 123, 127, 154, 160, 140, 103,  63,  44], \
+         [ 88,  66,  65,  86, 116, 155, 183, 179, 141, 107,  81,  63,  51,  46], \
+         [ 86,  58,  46,  51,  78, 126, 163, 157, 107,  69,  49,  44,  46,  46], \
+         [ 83,  62,  52,  47,  55,  73,  87,  85,  65,  51,  45,  44,  46,  47], \
+         [ 94,  81,  68,  54,  48,  42,  39,  38,  42,  45,  46,  47,  47,  46], \
+         [112, 115,  96,  68,  58,  51,  46,  45,  45,  46,  47,  47,  46,  46]], dtype=np.uint8)
+    TemplateShape = Template.shape
+    DiffFrame = np.where(GreyFrame == PrevFrame,0,GreyFrame)
+    PrevFrame = GreyFrame
+    Match = cv2.matchTemplate(image=DiffFrame, templ=Template, method=cv2.TM_CCOEFF)
+    MinVal, MaxVal, MinLoc, MaxLoc = cv2.minMaxLoc(Match)
+    coordinate = (int((MaxLoc[1] + TemplateShape[1]/2)), int((MaxLoc[0] + TemplateShape[0]/2)))
+    return [{'coordinate' : coordinate, 'move_type' : move_type}]
