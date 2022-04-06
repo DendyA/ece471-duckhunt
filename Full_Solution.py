@@ -50,6 +50,7 @@ def GetLocation(move_type, env, current_frame):
             BinIn = 0       # flag to bin the input image (only used for moving backgrounds, often degrades performance)
             MultGun = 0     # flag to use one shot for multiple targets (often better but takes more time, so a trade off)
             ShotGun = 0     # flag to use multiple shots for one target (usually degrades performance)
+            MovBack = 1     # try to detect moving background and turn on improvements
 
             # convert current frame to greyscale
             GreyFrame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
@@ -78,6 +79,14 @@ def GetLocation(move_type, env, current_frame):
                     [ 46,  44,  45,  51,  65,  85,  87,  85,  65,  51,  45,  44,  46], \
                     [ 47,  47,  46,  45,  42,  38,  39,  38,  42,  45,  46,  47,  47]], dtype=np.uint8)
             TemplateShape = Template.shape
+
+            # check for moving background
+            if (MovBack):
+                if sum(sum(greyScaleFrame - prev_frame)) > 50000:
+                    ImgProc = 1
+                    BinIn = 1
+                    MultGun = 1
+                    ShotGun = 1
 
             # if image processing flag is set to increase contrast 
             if (ImgProc):

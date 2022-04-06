@@ -1,32 +1,108 @@
 import cv2
 import numpy as np
 
-def GetLocation(move_type, env, CurrFrame):
-    global PrevFrame
-    GreyFrame = cv2.cvtColor(CurrFrame, cv2.COLOR_RGB2GRAY)
-    if 'PrevFrame' not in globals():
-        PrevFrame = GreyFrame
-    Template = np.array(                                                         \
-        [[160, 152, 136, 119, 130, 163, 192, 188, 148, 119, 104, 103, 111, 126], \
-         [146, 133, 113, 102, 128, 179, 219, 213, 158, 113,  85,  74,  76,  90], \
-         [117, 110, 113, 130, 165, 209, 239, 235, 193, 151, 114,  84,  63,  61], \
-         [ 85,  93, 131, 185, 221, 241, 250, 249, 237, 211, 170, 117,  68,  46], \
-         [ 71,  89, 147, 217, 246, 255, 255, 255, 255, 239, 197, 136,  72,  40], \
-         [ 71,  87, 143, 212, 240, 240, 233, 234, 244, 233, 193, 133,  72,  41], \
-         [ 72,  90, 147, 213, 222, 190, 156, 162, 208, 222, 194, 137,  73,  42], \
-         [ 73,  94, 154, 218, 207, 134,  69,  80, 168, 213, 199, 144,  75,  42], \
-         [ 74,  97, 160, 222, 197,  98,  13,  26, 144, 208, 204, 149,  77,  42], \
-         [ 75,  96, 156, 218, 198, 109,  31,  44, 150, 207, 199, 145,  76,  42], \
-         [ 83,  81, 109, 151, 161, 144, 123, 127, 154, 160, 140, 103,  63,  44], \
-         [ 88,  66,  65,  86, 116, 155, 183, 179, 141, 107,  81,  63,  51,  46], \
-         [ 86,  58,  46,  51,  78, 126, 163, 157, 107,  69,  49,  44,  46,  46], \
-         [ 83,  62,  52,  47,  55,  73,  87,  85,  65,  51,  45,  44,  46,  47], \
-         [ 94,  81,  68,  54,  48,  42,  39,  38,  42,  45,  46,  47,  47,  46], \
-         [112, 115,  96,  68,  58,  51,  46,  45,  45,  46,  47,  47,  46,  46]], dtype=np.uint8)
-    TemplateShape = Template.shape
-    DiffFrame = np.where(GreyFrame == PrevFrame,0,GreyFrame)
-    PrevFrame = GreyFrame
+def GetLocation(move_type, env, current_frame):
+    global prev_frame
+
+    # User flags
+    ReadTemp = 0    # flag to read template
+    ImgProc = 0     # flag to process input image (little effect for processes tried)
+    BinIn = 0       # flag to bin the input image (only used for moving backgrounds, often degrades performance)
+    MultGun = 0     # flag to use one shot for multiple targets (often better but takes more time, so a trade off)
+    ShotGun = 0     # flag to use multiple shots for one target (usually degrades performance)
+    MovBack = 1     # try to detect moving background and turn on improvements
+
+    # convert current frame to greyscale
+    greyScaleFrame = cv2.cvtColor(current_frame, cv2.COLOR_RGB2GRAY)
+
+    # if previous frame is not defined, set it to the current greyscale frame
+    if 'prev_frame' not in globals():
+        prev_frame = greyScaleFrame
+        
+        # read or set the matching template
+    if (ReadTemp):
+        Template = cv2.imread("duckeye.png", cv2.IMREAD_GRAYSCALE) 
+    else:
+        # small default template originally derived from an image of a birds eye but made symmetric in x and y
+        Template = np.array(                                                    \
+            [[ 47,  47,  46,  45,  42,  38,  39,  38,  42,  45,  46,  47,  47], \
+             [ 46,  44,  45,  51,  65,  85,  87,  85,  65,  51,  45,  44,  46], \
+             [ 46,  44,  49,  69, 107, 157, 163, 157, 107,  69,  49,  44,  46], \
+             [ 51,  63,  81, 107, 241, 179, 183, 179, 141, 107,  81,  63,  51], \
+             [ 63, 103, 140, 160, 154, 127, 123, 127, 154, 160, 140, 103,  63], \
+             [ 76, 145, 199, 207, 150,  44,  31,  44, 150, 207, 199, 145,  76], \
+             [ 77, 149, 204, 208, 144,  26,  13,  26, 144, 208, 204, 149,  77], \
+             [ 76, 145, 199, 207, 150,  44,  31,  44, 150, 207, 199, 145,  76], \
+             [ 63, 103, 140, 160, 154, 127, 123, 127, 154, 160, 140, 103,  63], \
+             [ 51,  63,  81, 107, 141, 179, 183, 179, 141, 107,  81,  63,  51], \
+             [ 46,  44,  49,  69, 107, 157, 163, 157, 107,  69,  49,  44,  46], \
+             [ 46,  44,  45,  51,  65,  85,  87,  85,  65,  51,  45,  44,  46], \
+             [ 47,  47,  46,  45,  42,  38,  39,  38,  42,  45,  46,  47,  47]], dtype=np.uint8)
+    TemplateShape = Template.shape        
+
+    # check for moving background
+    if (MovBack):
+        if sum(sum(greyScaleFrame - prev_frame)) > 50000:
+            ImgProc = 1
+            BinIn = 1
+            MultGun = 1
+            ShotGun = 1
+            
+    # if image processing flag is set to increase contrast 
+    if (ImgProc):
+        greyScaleFrame = cv2.equalizeHist(greyScaleFrame)
+        greyScaleFrame = cv2.adaptiveThreshold(greyScaleFrame,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
+
+    # if bin input flag is set and moving background   
+    if (BinIn and sum(sum(greyScaleFrame - prev_frame)) > 50000):
+        # bin to black white and grey to try to eliminate rain
+        BinFrame = np.full(greyScaleFrame.shape, 0, dtype=int)
+        BinFrame = np.where(greyScaleFrame >= 85, 128, greyScaleFrame)
+        BinFrame = np.where(greyScaleFrame >= 170, 220, greyScaleFrame)
+        greyScaleFrame = BinFrame
+        # bin template the same way
+        BinTemp = np.full(Template.shape, 0, dtype=int)
+        BinTemp = np.where(Template >= 85,130,Template)
+        BinTemp = np.where(Template >= 170,255,Template)
+        Template = BinTemp
+        
+    # create a difference frame to eliminate static backgronds and low any low contrast differences
+    DiffFrame = np.where(greyScaleFrame == prev_frame, 0, greyScaleFrame)
+    # save a new previous frame 
+    prev_frame = greyScaleFrame
+
+    # use template matching to find most likely template location
     Match = cv2.matchTemplate(image=DiffFrame, templ=Template, method=cv2.TM_CCOEFF)
+    # find top left corner of the template match
     MinVal, MaxVal, MinLoc, MaxLoc = cv2.minMaxLoc(Match)
+    # find middle of template and add coordinate and move type for output
     coordinate = (int((MaxLoc[1] + TemplateShape[1]/2)), int((MaxLoc[0] + TemplateShape[0]/2)))
-    return [{'coordinate' : coordinate, 'move_type' : move_type}]
+
+    # set coordinate for the centre of the template for the best target
+    out = [{'coordinate' : coordinate, 'move_type' : move_type}]
+
+    # find multiple targets by masking best Match and looking for new probability maximums
+    if (MultGun):
+        Spread = 40 # size of the masking box (from the centre)
+        NumTarg = 3 # number of shots
+        for x in range(NumTarg):
+            Mask = np.full(Match.shape[:2], 255, dtype=np.uint8)
+            cv2.rectangle(Mask, (coordinate[1]-Spread,coordinate[0]-Spread), (coordinate[1]+Spread,coordinate[0]+Spread), 0, -1)
+            Match = cv2.bitwise_and(Match, Match, mask=Mask)
+            MinVal, MaxVal, MinLoc, MaxLoc = cv2.minMaxLoc(Match)
+            coordinate = (int((MaxLoc[1] + TemplateShape[1]/2)), int((MaxLoc[0] + TemplateShape[0]/2)))
+            out.append({'coordinate' : coordinate, 'move_type' : move_type})
+
+    # take multiple shots around the best target to ensure a hit (up to 8 additional shots spread around the target)
+    if (ShotGun):
+        Spread = 40 # distance from the centre in each direction for additional shots
+        out.append({'coordinate' : (coordinate[0]+Spread,coordinate[1]), 'move_type' : move_type})
+        out.append({'coordinate' : (coordinate[0]-Spread,coordinate[1]), 'move_type' : move_type})
+        out.append({'coordinate' : (coordinate[0],coordinate[1]+Spread), 'move_type' : move_type})
+        out.append({'coordinate' : (coordinate[0],coordinate[1]-Spread), 'move_type' : move_type})
+        # out.append({'coordinate' : (coordinate[0]+Spread,coordinate[1]+Spread), 'move_type' : move_type})
+        # out.append({'coordinate' : (coordinate[0]-Spread,coordinate[1]+Spread), 'move_type' : move_type})
+        # out.append({'coordinate' : (coordinate[0]+Spread,coordinate[1]-Spread), 'move_type' : move_type})
+        # out.append({'coordinate' : (coordinate[0]-Spread,coordinate[1]-Spread), 'move_type' : move_type})
+
+    return out
