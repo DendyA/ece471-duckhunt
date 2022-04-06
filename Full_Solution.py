@@ -120,6 +120,18 @@ def GetLocation(move_type, env, current_frame):
 
             # set coordinate for the centre of the template for the best target
             out = [{'coordinate' : coordinate, 'move_type' : move_type}]
+           
+            # take multiple shots around the best target to ensure a hit (up to 8 additional shots spread around the target)
+            if (ShotGun):
+                Spread = 30 # distance from the centre in each direction for additional shots
+                out.append({'coordinate' : (coordinate[0]+Spread,coordinate[1]), 'move_type' : move_type})
+                out.append({'coordinate' : (coordinate[0]-Spread,coordinate[1]), 'move_type' : move_type})
+                out.append({'coordinate' : (coordinate[0],coordinate[1]+Spread), 'move_type' : move_type})
+                out.append({'coordinate' : (coordinate[0],coordinate[1]-Spread), 'move_type' : move_type})
+                #out.append({'coordinate' : (coordinate[0]+Spread,coordinate[1]+Spread), 'move_type' : move_type})
+                #out.append({'coordinate' : (coordinate[0]-Spread,coordinate[1]+Spread), 'move_type' : move_type})
+                #out.append({'coordinate' : (coordinate[0]+Spread,coordinate[1]-Spread), 'move_type' : move_type})
+                #out.append({'coordinate' : (coordinate[0]-Spread,coordinate[1]-Spread), 'move_type' : move_type})
 
             # find multiple targets by masking best Match and looking for new probability maximums
             if (MultGun):
@@ -133,17 +145,6 @@ def GetLocation(move_type, env, current_frame):
                     coordinate = (int((MaxLoc[1] + TemplateShape[1]/2)), int((MaxLoc[0] + TemplateShape[0]/2)))
                     out.append({'coordinate' : coordinate, 'move_type' : move_type})
 
-            # take multiple shots around the best target to ensure a hit (up to 8 additional shots spread around the target)
-            if (ShotGun):
-                Spread = 30 # distance from the centre in each direction for additional shots
-                out.append({'coordinate' : (coordinate[0]+Spread,coordinate[1]), 'move_type' : move_type})
-                out.append({'coordinate' : (coordinate[0]-Spread,coordinate[1]), 'move_type' : move_type})
-                out.append({'coordinate' : (coordinate[0],coordinate[1]+Spread), 'move_type' : move_type})
-                out.append({'coordinate' : (coordinate[0],coordinate[1]-Spread), 'move_type' : move_type})
-                #out.append({'coordinate' : (coordinate[0]+Spread,coordinate[1]+Spread), 'move_type' : move_type})
-                #out.append({'coordinate' : (coordinate[0]-Spread,coordinate[1]+Spread), 'move_type' : move_type})
-                #out.append({'coordinate' : (coordinate[0]+Spread,coordinate[1]-Spread), 'move_type' : move_type})
-                #out.append({'coordinate' : (coordinate[0]-Spread,coordinate[1]-Spread), 'move_type' : move_type})
             return out
 
         elif visionTypeToUse == comp_vis_type[1]:
